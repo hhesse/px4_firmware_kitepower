@@ -42,6 +42,8 @@
 #include <px4_time.h>
 #include <stdio.h>
 
+
+
 #include <commander/px4_custom_mode.h>
 #include <lib/geo/geo.h>
 #include <uORB/uORB.h>
@@ -74,8 +76,15 @@
 #include <systemlib/err.h>
 #include <mavlink/mavlink_log.h>
 
+
+
 #include "mavlink_messages.h"
 #include "mavlink_main.h"
+
+#include <uORB/topics/custom_messages/yaw_rate_filtered.h> // Added by Martin Rudin
+
+
+
 
 static uint16_t cm_uint16_from_m_float(float m);
 static void get_mavlink_mode_state(struct vehicle_status_s *status, struct position_setpoint_triplet_s *pos_sp_triplet,
@@ -234,6 +243,148 @@ void get_mavlink_mode_state(struct vehicle_status_s *status, struct position_set
 }
 
 
+//----------------------------------------- ADD YAW_RATE_FILTERED MSG--------
+// by Martin Rudin
+
+class MavlinkStreamyawratefiltered : public MavlinkStream
+{
+public:
+	const char *get_name() const
+	{
+		return MavlinkStreamyawratefiltered::get_name_static();
+	}
+
+	static const char *get_name_static()
+	{
+		return "YAW_RATE_FILTERED";
+	}
+
+	uint8_t get_id()
+	{
+		return MAVLINK_MSG_ID_YAW_RATE_FILTERED;
+	}
+
+	static MavlinkStream *new_instance(Mavlink *mavlink)
+	{
+		return new MavlinkStreamyawratefiltered(mavlink);
+	}
+
+	unsigned get_size()
+	{
+		return MAVLINK_MSG_ID_YAW_RATE_FILTERED_LEN + MAVLINK_NUM_NON_PAYLOAD_BYTES;
+	}
+
+private:
+	MavlinkOrbSubscription *_yaw_sub;
+	uint64_t _yaw_time;
+
+	/* do not allow top copying this class */
+	MavlinkStreamyawratefiltered(MavlinkStreamyawratefiltered &);
+	MavlinkStreamyawratefiltered& operator = (const MavlinkStreamyawratefiltered &);
+
+protected:
+	explicit MavlinkStreamyawratefiltered(Mavlink *mavlink) : MavlinkStream(mavlink),
+		_yaw_sub(_mavlink->add_orb_subscription(ORB_ID(yaw_rate_filtered))),
+		_yaw_time(0)
+	{}
+
+	void send(const hrt_abstime t)
+	{
+		struct yaw_rate_filtered_s yaw;
+
+
+		if (_yaw_sub->update(&_yaw_time, &yaw)) {
+
+
+			mavlink_yaw_rate_filtered_t msg;
+
+			msg.yaw_rate_filtered = yaw.yaw_rate_filtered;
+
+			/*
+			printf("[mavlink_message.cpp] payload:\t%8.4f\n",
+				(double) msg.yaw_rate_filtered);*/
+
+
+			_mavlink->send_message(MAVLINK_MSG_ID_YAW_RATE_FILTERED, &msg);
+		}
+	}
+};
+
+// Added by Martin Rudin
+ class MavlinkStreamYawRate : public MavlinkStream
+ {
+ public:
+     const char *get_name() const
+     {
+         return MavlinkStreamYawRate::get_name_static();
+     }
+
+
+     static const char *get_name_static()
+     {
+         return "YAW_RATE_MSG";
+     }
+
+
+     uint8_t get_id()
+     {
+         return 0;
+     }
+
+
+     static MavlinkStream *new_instance(Mavlink *mavlink)
+     {
+         return new MavlinkStreamYawRate(mavlink);
+     }
+
+
+     unsigned get_size()
+     {
+         //return 8 * (MAVLINK_MSG_ID_NAMED_VALUE_FLOAT_LEN + MAVLINK_NUM_NON_PAYLOAD_BYTES);
+         //return 6 * (MAVLINK_MSG_ID_NAMED_VALUE_FLOAT_LEN + MAVLINK_NUM_NON_PAYLOAD_BYTES);
+         //return 4 * (MAVLINK_MSG_ID_NAMED_VALUE_FLOAT_LEN + MAVLINK_NUM_NON_PAYLOAD_BYTES);
+         return 1 * (MAVLINK_MSG_ID_NAMED_VALUE_FLOAT_LEN + MAVLINK_NUM_NON_PAYLOAD_BYTES);
+     }
+
+
+ private:
+     MavlinkOrbSubscription *_yaw_rate_sub;
+     uint64_t _yaw_rate_time;
+
+
+     /* do not allow top copying this class */
+     MavlinkStreamYawRate(MavlinkStreamYawRate &);
+     MavlinkStreamYawRate& operator = (const MavlinkStreamYawRate &);
+
+
+ protected:
+     explicit MavlinkStreamYawRate(Mavlink *mavlink) : MavlinkStream(mavlink),
+         _yaw_rate_sub(_mavlink->add_orb_subscription(ORB_ID(yaw_rate_filtered))),
+         _yaw_rate_time(0)
+     {}
+
+
+     void send(const hrt_abstime t)
+     {
+         struct yaw_rate_filtered_s yaw_rate;
+
+
+         if (_yaw_rate_sub->update(&_yaw_rate_time, &yaw_rate)) {
+             /* send, add spaces so that string buffer is at least 10 chars long */
+             mavlink_named_value_float_t msg;
+
+
+             msg.value = yaw_rate.yaw_rate_filtered;
+
+
+             _mavlink->send_message(MAVLINK_MSG_ID_NAMED_VALUE_FLOAT, &msg);
+
+         }
+     }
+ };
+
+//** **//
+
 class MavlinkStreamHeartbeat : public MavlinkStream
 {
 public:
@@ -304,6 +455,7 @@ protected:
 		msg.type = _mavlink->get_system_type();
 		msg.autopilot = MAV_AUTOPILOT_PX4;
 		msg.mavlink_version = 3;
+
 
 		_mavlink->send_message(MAVLINK_MSG_ID_HEARTBEAT, &msg);
 	}
@@ -2297,5 +2449,7 @@ const StreamListItem *streams_list[] = {
 	new StreamListItem(&MavlinkStreamNamedValueFloat::new_instance, &MavlinkStreamNamedValueFloat::get_name_static),
 	new StreamListItem(&MavlinkStreamCameraCapture::new_instance, &MavlinkStreamCameraCapture::get_name_static),
 	new StreamListItem(&MavlinkStreamDistanceSensor::new_instance, &MavlinkStreamDistanceSensor::get_name_static),
+	new StreamListItem(&MavlinkStreamyawratefiltered::new_instance, &MavlinkStreamyawratefiltered::get_name_static), //Added by Martin Rudin
+	new StreamListItem(&MavlinkStreamYawRate::new_instance, &MavlinkStreamYawRate::get_name_static), //Added by Martin Rudin
 	nullptr
 };
