@@ -46,7 +46,7 @@ MODULES		+= drivers/px4flow
 MODULES		+= drivers/oreoled
 MODULES		+= drivers/gimbal
 MODULES		+= drivers/pwm_input
-MODULES		+= modules/yaw_rate_app // Added by Martin Rudin
+MODULES		+= modules/yaw_rate_app #Added by Martin Rudin
 
 #
 # System commands

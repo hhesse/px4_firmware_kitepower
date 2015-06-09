@@ -32,6 +32,6 @@
 ############################################################################
 
 
-MODULE_COMMAND	= yaw_angle_app
-SRCS		 	= yaw_angle_app.c
+MODULE_COMMAND	= yaw_rate_app
+SRCS		 	= yaw_rate_app.c
 
