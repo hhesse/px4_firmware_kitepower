@@ -256,3 +256,6 @@ ORB_DEFINE(mc_att_ctrl_status, struct mc_att_ctrl_status_s);
 
 #include "topics/distance_sensor.h"
 ORB_DEFINE(distance_sensor, struct distance_sensor_s);
+
+#include "topics/custom_messages/yaw_rate_filtered.h" // Added by Martin Rudin
+ORB_DEFINE(distance_sensor, struct distance_sensor_s);// Added by Martin Rudin
