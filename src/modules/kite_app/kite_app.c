@@ -48,7 +48,9 @@
 
 #include <uORB/uORB.h>
 #include <uORB/topics/sensor_combined.h>
+#include <uORB/topics/vehicle_gps_position.h>
 #include <uORB/topics/custom_messages/yaw_rate_filtered.h>
+#include <uORB/topics/custom_messages/gps_reduced.h>
 
 __EXPORT int kite_app_main(int argc, char *argv[]);
 
@@ -60,16 +62,30 @@ int kite_app_main(int argc, char *argv[])
 	int sensor_sub_fd = orb_subscribe(ORB_ID(sensor_combined));
 	/*orb_set_interval(sensor_sub_fd, 1000);*/
 
+	/* subscribe to vehicle_gps_position topic */
+	int gps_sub_fd = orb_subscribe(ORB_ID(vehicle_gps_position));
+
+
 	/* advertise yaw_rate_filterted topic */
 	orb_advert_t	yaw_rate_pub;
+
 
 	struct yaw_rate_filtered_s yaw;
 	memset(&yaw, 0, sizeof(yaw));
 	yaw_rate_pub = orb_advertise(ORB_ID(yaw_rate_filtered), &yaw);
 
+	/* advertise gps_reduced topic */
+	orb_advert_t	gps_reduced_pub;
+
+	struct gps_reduced_s gps;
+	memset(&gps, 0, sizeof(gps));
+	gps_reduced_pub = orb_advertise(ORB_ID(gps_reduced), &gps);
+
+
 	/* one could wait for multiple topics with this technique, just using one here */
 	struct pollfd fds[] = {
 		{ .fd = sensor_sub_fd,   .events = POLLIN },
+		{ .fd = gps_sub_fd,   .events = POLLIN },
 		/* there could be more file descriptors here, in the form like:
 		 * { .fd = other_sub_fd,   .events = POLLIN },
 		 */
@@ -84,12 +100,12 @@ int kite_app_main(int argc, char *argv[])
 		/* handle the poll result */
 		if (poll_ret == 0) {
 			/* this means none of our providers is giving us data */
-			printf("[yaw_angle_app] Got no data within a second\n");
+			printf("[kite_app] Got no data within a second\n");
 		} else if (poll_ret < 0) {
 			/* this is seriously bad - should be an emergency */
 			if (error_counter < 10 || error_counter % 50 == 0) {
 				/* use a counter to prevent flooding (and slowing us down) */
-				printf("[yaw_angle_app] ERROR return value from poll(): %d\n"
+				printf("[kite_app] ERROR return value from poll(): %d\n"
 					, poll_ret);
 			}
 			error_counter++;
@@ -98,21 +114,29 @@ int kite_app_main(int argc, char *argv[])
 			if (fds[0].revents & POLLIN) {
 				/* obtained data for the first file descriptor */
 				struct sensor_combined_s raw;
+				struct vehicle_gps_position_s gps_red;
+
 				/* copy sensors raw data into local buffer */
 				orb_copy(ORB_ID(sensor_combined), sensor_sub_fd, &raw);
+				orb_copy(ORB_ID(vehicle_gps_position), gps_sub_fd, &gps_red);
 
-				/*print sensor data
-				printf("[yaw_angle_app] Accelerometer:\t%8.4f\t%8.4f\t%8.4f\t%8.4f\n",
-					(double)raw.gyro1_timestamp,
-					(double)raw.gyro1_raw[2],
-					(double)raw.gyro1_rad_s[2],
-					(double)raw.gyro1_temp);
-				*/
+				/*print sensor data */
+				printf("[yaw_angle_app] eph:\t%8.4f\n",
+					(double)gps_red.eph);
 
-				/* set yaw and publish this information for other apps */
+
+				/* set yaw and gps and publish this information for other apps */
 				yaw.timestamp = raw.gyro1_timestamp;
 				yaw.yaw_rate_filtered = raw.gyro_rad_s[2];
 				orb_publish(ORB_ID(yaw_rate_filtered), yaw_rate_pub, &yaw);
+
+				gps.alt = gps_red.alt;
+				gps.lat = gps_red.lat;
+				gps.lon = gps_red.lon;
+				gps.eph = gps_red.eph;
+				gps.epv = gps_red.epv;
+
+				orb_publish(ORB_ID(gps_reduced), gps_reduced_pub, &gps);
 			}
 
 		}
