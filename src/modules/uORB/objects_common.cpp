@@ -259,6 +259,3 @@ ORB_DEFINE(distance_sensor, struct distance_sensor_s);
 
 #include "topics/custom_messages/yaw_rate_filtered.h" // Added by Martin Rudin
 ORB_DEFINE(yaw_rate_filtered, struct yaw_rate_filtered_s);// Added by Martin Rudin
-
-#include "topics/custom_messages/gps_reduced.h" // Added by Martin Rudin
-ORB_DEFINE(gps_reduced, struct gps_reduced_s);// Added by Martin Rudin

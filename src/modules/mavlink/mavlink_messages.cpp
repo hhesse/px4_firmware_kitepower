@@ -86,6 +86,7 @@
 
 
 
+
 static uint16_t cm_uint16_from_m_float(float m);
 static void get_mavlink_mode_state(struct vehicle_status_s *status, struct position_setpoint_triplet_s *pos_sp_triplet,
 				   uint8_t *mavlink_state, uint8_t *mavlink_base_mode, uint32_t *mavlink_custom_mode);
@@ -311,79 +312,67 @@ protected:
 };
 
 // Added by Martin Rudin
- class MavlinkStreamYawRate : public MavlinkStream
- {
- public:
-     const char *get_name() const
-     {
-         return MavlinkStreamYawRate::get_name_static();
-     }
+class MavlinkStreamGpsReduced : public MavlinkStream
+{
+public:
+	const char *get_name() const
+	{
+		return MavlinkStreamGpsReduced::get_name_static();
+	}
+
+	static const char *get_name_static()
+	{
+		return "GPS_REDUCED";
+	}
+
+	uint8_t get_id()
+	{
+		return MAVLINK_MSG_ID_GPS_REDUCED;
+	}
+
+	static MavlinkStream *new_instance(Mavlink *mavlink)
+	{
+		return new MavlinkStreamGpsReduced(mavlink);
+	}
+
+	unsigned get_size()
+	{
+		return MAVLINK_MSG_ID_GPS_REDUCED_LEN + MAVLINK_NUM_NON_PAYLOAD_BYTES;
+	}
+
+private:
+	MavlinkOrbSubscription *_gps_red_sub;
+	uint64_t _gps_red_time;
+
+	/* do not allow top copying this class */
+	MavlinkStreamGpsReduced(MavlinkStreamGpsReduced &);
+	MavlinkStreamGpsReduced& operator = (const MavlinkStreamGpsReduced &);
+
+protected:
+	explicit MavlinkStreamGpsReduced(Mavlink *mavlink) : MavlinkStream(mavlink),
+		_gps_red_sub(_mavlink->add_orb_subscription(ORB_ID(vehicle_gps_position))),
+		_gps_red_time(0)
+	{}
+
+	void send(const hrt_abstime t)
+	{
+		struct vehicle_gps_position_s gps;
+
+		if (_gps_red_sub->update(&_gps_red_time, &gps)) {
+			mavlink_gps_reduced_t msg;
 
 
-     static const char *get_name_static()
-     {
-         return "YAW_RATE_MSG";
-     }
+			msg.lat = gps.lat;
+			msg.lon = gps.lon;
+			msg.alt = gps.alt;
+			msg.eph = cm_uint16_from_m_float(gps.eph);
+			msg.epv = cm_uint16_from_m_float(gps.epv);
 
+			_mavlink->send_message(MAVLINK_MSG_ID_GPS_REDUCED, &msg);
+		}
+	}
+};
 
-     uint8_t get_id()
-     {
-         return 0;
-     }
-
-
-     static MavlinkStream *new_instance(Mavlink *mavlink)
-     {
-         return new MavlinkStreamYawRate(mavlink);
-     }
-
-
-     unsigned get_size()
-     {
-         //return 8 * (MAVLINK_MSG_ID_NAMED_VALUE_FLOAT_LEN + MAVLINK_NUM_NON_PAYLOAD_BYTES);
-         //return 6 * (MAVLINK_MSG_ID_NAMED_VALUE_FLOAT_LEN + MAVLINK_NUM_NON_PAYLOAD_BYTES);
-         //return 4 * (MAVLINK_MSG_ID_NAMED_VALUE_FLOAT_LEN + MAVLINK_NUM_NON_PAYLOAD_BYTES);
-         return 1 * (MAVLINK_MSG_ID_NAMED_VALUE_FLOAT_LEN + MAVLINK_NUM_NON_PAYLOAD_BYTES);
-     }
-
-
- private:
-     MavlinkOrbSubscription *_yaw_rate_sub;
-     uint64_t _yaw_rate_time;
-
-
-     /* do not allow top copying this class */
-     MavlinkStreamYawRate(MavlinkStreamYawRate &);
-     MavlinkStreamYawRate& operator = (const MavlinkStreamYawRate &);
-
-
- protected:
-     explicit MavlinkStreamYawRate(Mavlink *mavlink) : MavlinkStream(mavlink),
-         _yaw_rate_sub(_mavlink->add_orb_subscription(ORB_ID(yaw_rate_filtered))),
-         _yaw_rate_time(0)
-     {}
-
-
-     void send(const hrt_abstime t)
-     {
-         struct yaw_rate_filtered_s yaw_rate;
-
-
-         if (_yaw_rate_sub->update(&_yaw_rate_time, &yaw_rate)) {
-             /* send, add spaces so that string buffer is at least 10 chars long */
-             mavlink_named_value_float_t msg;
-
-
-             msg.value = yaw_rate.yaw_rate_filtered;
-
-
-             _mavlink->send_message(MAVLINK_MSG_ID_NAMED_VALUE_FLOAT, &msg);
-
-         }
-     }
- };
-
-//** **//
 
 class MavlinkStreamHeartbeat : public MavlinkStream
 {
@@ -2450,6 +2439,6 @@ const StreamListItem *streams_list[] = {
 	new StreamListItem(&MavlinkStreamCameraCapture::new_instance, &MavlinkStreamCameraCapture::get_name_static),
 	new StreamListItem(&MavlinkStreamDistanceSensor::new_instance, &MavlinkStreamDistanceSensor::get_name_static),
 	new StreamListItem(&MavlinkStreamyawratefiltered::new_instance, &MavlinkStreamyawratefiltered::get_name_static), //Added by Martin Rudin
-	new StreamListItem(&MavlinkStreamYawRate::new_instance, &MavlinkStreamYawRate::get_name_static), //Added by Martin Rudin
+	new StreamListItem(&MavlinkStreamGpsReduced::new_instance, &MavlinkStreamGpsReduced::get_name_static), //Added by Martin Rudin
 	nullptr
 };
