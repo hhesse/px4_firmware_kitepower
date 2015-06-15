@@ -358,6 +358,7 @@ protected:
 	{
 		struct vehicle_gps_position_s gps;
 
+
 		if (_gps_red_sub->update(&_gps_red_time, &gps)) {
 			mavlink_gps_reduced_t msg;
 
@@ -367,6 +368,7 @@ protected:
 			msg.alt = gps.alt;
 			msg.eph = cm_uint16_from_m_float(gps.eph);
 			msg.epv = cm_uint16_from_m_float(gps.epv);
+			msg.vel = sqrt(gps.vel_d_m_s*gps.vel_d_m_s +gps.vel_e_m_s*gps.vel_e_m_s+gps.vel_n_m_s*gps.vel_n_m_s);
 
 			_mavlink->send_message(MAVLINK_MSG_ID_GPS_REDUCED, &msg);
 		}
