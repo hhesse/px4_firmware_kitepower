@@ -101,6 +101,10 @@
 #include <uORB/topics/time_offset.h>
 #include <uORB/topics/mc_att_ctrl_status.h>
 
+
+#include <uORB/topics/custom_messages/yaw_rate_filtered.h>//Added by Martin Rudin
+
+
 #include <systemlib/systemlib.h>
 #include <systemlib/param/param.h>
 #include <systemlib/perf_counter.h>
@@ -1092,6 +1096,7 @@ int sdlog2_thread_main(int argc, char *argv[])
 		struct vtol_vehicle_status_s vtol_status;
 		struct time_offset_s time_offset;
 		struct mc_att_ctrl_status_s mc_att_ctrl_status;
+		struct yaw_rate_filtered_s yaw_rate_filtered; // Added by Martin Rudin
 	} buf;
 
 	memset(&buf, 0, sizeof(buf));
@@ -1138,6 +1143,7 @@ int sdlog2_thread_main(int argc, char *argv[])
 			struct log_ENCD_s log_ENCD;
 			struct log_TSYN_s log_TSYN;
 			struct log_MACS_s log_MACS;
+			struct log_YAWR_s log_YAWR; //Added by Martin Rudin
 		} body;
 	} log_msg = {
 		LOG_PACKET_HEADER_INIT(0)
@@ -1180,6 +1186,7 @@ int sdlog2_thread_main(int argc, char *argv[])
 		int encoders_sub;
 		int tsync_sub;
 		int mc_att_ctrl_status_sub;
+		int yaw_rate_filtered_sub; // Added by Martin Rudin
 	} subs;
 
 	subs.cmd_sub = -1;
@@ -1215,8 +1222,9 @@ int sdlog2_thread_main(int argc, char *argv[])
 	subs.mc_att_ctrl_status_sub = -1;
 	subs.encoders_sub = -1;
 
-	/* add new topics HERE */
 
+	/* add new topics HERE */
+	subs.yaw_rate_filtered_sub = orb_subscribe(ORB_ID(yaw_rate_filtered));; //Added by Martin Rudin
 
 	for (unsigned i = 0; i < TELEMETRY_STATUS_ORB_ID_NUM; i++) {
 		subs.telemetry_subs[i] = -1;
@@ -1313,6 +1321,14 @@ int sdlog2_thread_main(int argc, char *argv[])
 			log_msg.body.log_STAT.load = buf_status.load;
 			LOGBUFFER_WRITE_AND_COUNT(STAT);
 		}
+
+        /* --- YAW_RATE_FILTERED */
+         /* Added by Martin Rudin */
+         if (copy_if_updated(ORB_ID(yaw_rate_filtered), &subs.yaw_rate_filtered_sub, &buf.yaw_rate_filtered)) {
+        	log_msg.msg_type = LOG_YAWR_MSG;
+            log_msg.body.log_YAWR.yaw_rate_filtered = buf.yaw_rate_filtered.yaw_rate_filtered;
+             LOGBUFFER_WRITE_AND_COUNT(YAWR);
+         }
 
 		/* --- VTOL VEHICLE STATUS --- */
 		if(copy_if_updated(ORB_ID(vtol_vehicle_status), &subs.vtol_status_sub, &buf.vtol_status)) {

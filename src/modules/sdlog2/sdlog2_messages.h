@@ -79,6 +79,19 @@ struct log_ATSP_s {
 	float q_z;
 };
 
+
+
+ /* --- YAW_RATE_FILTERED -------------------------------------------------*/
+ #define LOG_YAWR_MSG 63 //Added Martin Rudin
+ struct log_YAWR_s{
+     float    yaw_rate_filtered;
+
+};
+
+
+
+
+
 /* --- IMU - IMU SENSORS --- */
 #define LOG_IMU_MSG 4
 #define LOG_IMU1_MSG 22
@@ -534,6 +547,7 @@ static const struct log_format_s log_formats[] = {
 	LOG_FORMAT(ENCD, "qfqf",	"cnt0,vel0,cnt1,vel1"),
 	LOG_FORMAT(TSYN, "Q", 		"TimeOffset"),
 	LOG_FORMAT(MACS, "fff", "RRint,PRint,YRint"),
+	LOG_FORMAT(YAWR, "f", "yawr"), //Added by Martin Rudin
 
 	/* system-level messages, ID >= 0x80 */
 	/* FMT: don't write format of format message, it's useless */

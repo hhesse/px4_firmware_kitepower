@@ -39,6 +39,7 @@
  * filters angular rate around z
  */
 
+
 #include <nuttx/config.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -51,11 +52,19 @@
 #include <uORB/topics/custom_messages/yaw_rate_filtered.h>
 
 
+#define FILTER_DIM 50
+
+float bufferYawRate[FILTER_DIM];
+float meanYawRate = 0;
+
 __EXPORT int kite_app_main(int argc, char *argv[]);
 
 int kite_app_main(int argc, char *argv[])
 {
 	printf("Hello Sky!\n");
+
+
+
 
 	/* subscribe to sensor_combined topic */
 	int sensor_sub_fd = orb_subscribe(ORB_ID(sensor_combined));
@@ -114,9 +123,25 @@ int kite_app_main(int argc, char *argv[])
 					(double)gps_red.eph); */
 
 
+				/*moving average filter
+				for(unsigned i = 0; i <= FILTER_DIM-2; ++i)
+					bufferYawRate[FILTER_DIM-1-i] = bufferYawRate[FILTER_DIM-2-i];
+				bufferYawRate[0] = raw.gyro_rad_s[2];
+
+				for (unsigned j=0; j <= FILTER_DIM;++j)
+					meanYawRate += bufferYawRate[j];
+
+				meanYawRate = meanYawRate / FILTER_DIM;
+
+				yaw.yaw_rate_filtered = meanYawRate;
+				*/
+
+
+
 				/* set yaw and gps and publish this information for other apps */
 				yaw.timestamp = raw.gyro1_timestamp;
 				yaw.yaw_rate_filtered = raw.gyro_rad_s[2];
+
 				orb_publish(ORB_ID(yaw_rate_filtered), yaw_rate_pub, &yaw);
 
 			}
