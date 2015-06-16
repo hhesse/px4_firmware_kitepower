@@ -344,6 +344,9 @@ private:
 	MavlinkOrbSubscription *_gps_red_sub;
 	uint64_t _gps_red_time;
 
+	MavlinkOrbSubscription *_sensor_sub;
+	uint64_t _sensor_time;
+
 	/* do not allow top copying this class */
 	MavlinkStreamGpsReduced(MavlinkStreamGpsReduced &);
 	MavlinkStreamGpsReduced& operator = (const MavlinkStreamGpsReduced &);
@@ -351,21 +354,29 @@ private:
 protected:
 	explicit MavlinkStreamGpsReduced(Mavlink *mavlink) : MavlinkStream(mavlink),
 		_gps_red_sub(_mavlink->add_orb_subscription(ORB_ID(vehicle_gps_position))),
-		_gps_red_time(0)
+		_gps_red_time(0),
+		_sensor_sub(_mavlink->add_orb_subscription(ORB_ID(sensor_combined))),
+		_sensor_time(0)
 	{}
+
+
 
 	void send(const hrt_abstime t)
 	{
+
 		struct vehicle_gps_position_s gps;
+		struct sensor_combined_s sensor;
+
+		bool updated = _sensor_sub->update(&_sensor_time, &sensor);
+		updated |= _gps_red_sub->update(&_gps_red_time, &gps);
 
 
-		if (_gps_red_sub->update(&_gps_red_time, &gps)) {
+		if (updated) {
 			mavlink_gps_reduced_t msg;
 
-
+			msg.alt = sensor.baro_alt_meter;
 			msg.lat = gps.lat;
 			msg.lon = gps.lon;
-			msg.alt = gps.alt;
 			msg.eph = cm_uint16_from_m_float(gps.eph);
 			msg.epv = cm_uint16_from_m_float(gps.epv);
 			msg.vel = sqrt(gps.vel_d_m_s*gps.vel_d_m_s +gps.vel_e_m_s*gps.vel_e_m_s+gps.vel_n_m_s*gps.vel_n_m_s);
