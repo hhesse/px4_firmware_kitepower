@@ -374,7 +374,7 @@ protected:
 		if (updated) {
 			mavlink_gps_reduced_t msg;
 
-			msg.alt = sensor.baro_alt_meter;
+			msg.baro_alt = sensor.baro_alt_meter;
 			msg.lat = gps.lat;
 			msg.lon = gps.lon;
 			msg.eph = cm_uint16_from_m_float(gps.eph);
